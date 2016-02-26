@@ -17,24 +17,31 @@ class CopterSim:
         self.ground_contact_stiffness = 0.5*self.mass*(ground_contact_freq*2.*pi)**2
         self.ground_contact_damping = 2.*ground_contact_damping_ratio*sqrt(self.ground_contact_stiffness*0.5*self.mass)
 
-        self.omega = np.array([0.0,0.0,0.0])
+        self.thrustLimit = 20.
+        self.thrustIn = 0.
+        self.thrust = 0.
+        self.omega = np.array([0.,0.,0.])
 
         self.t = 0.
         self.dt = dt
 
     def update(self):
-        x = np.linspace(self.t, self.t+self.dt, 2.)
-        self.t += self.dt
-        self.state = odeint(self.dyn, self.state, x)[-1]
+        tbegin = self.t
+        tend = self.t+self.dt
+        self.state = odeint(self.dyn, self.state, np.linspace(tbegin, tend, 2.))[-1]
+        self.t = tend
 
-    def dyn(self,y,t):
+    def dyn(self, y, t):
         #these let us call member functions
         self.t = t
         self.state = y
 
-        force = self.getGravityForceNED() + self.getGroundContactForceNED() + self.getThrustForceNED()
+        force = self.getGravityForceNED() + self.getGroundContactForceNED() + self.getDragForceNED() + self.getThrustForceNED()
 
         return np.concatenate((quatderiv(self.state[0:4], self.omega), force/self.mass, self.getVelNED()))
+
+    def getDragForceNED(self):
+        return -self.getVelNED()
 
     def getGravityForceNED(self):
         return np.array([0.,0.,9.80665])
@@ -48,7 +55,7 @@ class CopterSim:
             return np.array([0.,0.,0.])
 
     def getThrustForceNED(self):
-        return np.asarray(self.getRotationBodyToNED() * np.matrix([0.,0.,0.]).T).flatten()
+        return np.asarray(self.getRotationBodyToNED() * np.matrix([0.,0.,-self.thrust]).T).flatten()
 
     def getRotationBodyToNED(self):
         qr = self.state[0]
@@ -68,8 +75,15 @@ class CopterSim:
     def getPosNED(self):
         return self.state[7:10]
 
+    def getOmega(self):
+        return self.omega
+
     def setOmega(self, omega):
         self.omega = np.asarray(omega)
+
+    def setThrust(self,thrustIn):
+        self.thrustIn = thrustIn
+        self.thrust = min(max(self.thrustIn,0.),self.thrustLimit)
 
     def getUpVecNED(self):
         Tbn = self.getRotationBodyToNED()

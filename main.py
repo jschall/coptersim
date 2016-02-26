@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import numpy as np
 from math import *
 from visual import *
@@ -22,6 +23,8 @@ uparrow =  arrow(pos=(0,0,0), axis=nedtovpy(copter.getUpVecNED()), color=color.b
 
 while True:
     rate(1./dt)
+    copter.setThrust(20.)
+    copter.setOmega((1.,0.,0.))
     copter.update()
     fwdarrow.pos = nedtovpy(copter.getPosNED()+np.array([0.,0.,-0.2]))
     fwdarrow.axis = nedtovpy(copter.getForwardVecNED())
