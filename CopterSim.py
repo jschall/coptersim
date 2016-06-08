@@ -36,9 +36,13 @@ class CopterSim:
         self.t = t
         self.state = y
 
-        force = self.getGravityForceNED() + self.getGroundContactForceNED() + self.getDragForceNED() + self.getThrustForceNED()
+        return np.concatenate((quatderiv(self.state[0:4], self.omega), self.getCoordAccelNED(), self.getVelNED()))
 
-        return np.concatenate((quatderiv(self.state[0:4], self.omega), force/self.mass, self.getVelNED()))
+    def getProperAccelBody(self):
+        return np.asarray(self.getRotationBodyToNED().T * np.matrix(self.getCoordAccelNED()-self.getGravityForceNED()).T).flatten()
+
+    def getCoordAccelNED(self):
+        return (self.getGravityForceNED() + self.getGroundContactForceNED() + self.getDragForceNED() + self.getThrustForceNED())/self.mass
 
     def getDragForceNED(self):
         return -self.getVelNED()
@@ -56,6 +60,13 @@ class CopterSim:
 
     def getThrustForceNED(self):
         return np.asarray(self.getRotationBodyToNED() * np.matrix([0.,0.,-self.thrust]).T).flatten()
+
+    def setOmega(self, omega):
+        self.omega = np.asarray(omega)
+
+    def setThrust(self,thrustIn):
+        self.thrustIn = thrustIn
+        self.thrust = min(max(self.thrustIn,0.),self.thrustLimit)
 
     def getRotationBodyToNED(self):
         qr = self.state[0]
@@ -78,12 +89,11 @@ class CopterSim:
     def getOmega(self):
         return self.omega
 
-    def setOmega(self, omega):
-        self.omega = np.asarray(omega)
+    def getThrust(self):
+        return self.thrust
 
-    def setThrust(self,thrustIn):
-        self.thrustIn = thrustIn
-        self.thrust = min(max(self.thrustIn,0.),self.thrustLimit)
+    def getThrustForceHeadroom(self):
+        return self.thrustLimit-self.thrustIn
 
     def getUpVecNED(self):
         Tbn = self.getRotationBodyToNED()
